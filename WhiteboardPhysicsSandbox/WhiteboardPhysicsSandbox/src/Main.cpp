@@ -61,9 +61,40 @@ int main(const int argc, char* argv[])
 		cv::imshow("webcam", cameraFrame);
 
 		cv::cvtColor(cameraFrame, cameraFrame, cv::COLOR_BGR2GRAY);
-		cv::threshold(cameraFrame, cameraFrame, 140.0, 255.0f, cv::THRESH_BINARY_INV);
+		cv::threshold(cameraFrame, cameraFrame, 128.0, 255.0f, cv::THRESH_BINARY_INV);
 		cv::imshow("webcam_threshold", cameraFrame);
 
+		std::vector<std::vector<cv::Point>> contours;
+		std::vector<cv::Vec4i> hierarchy;
+
+		cv::findContours(cameraFrame, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE, cv::Point(0, 0));
+
+		std::vector<cv::RotatedRect> minRects(contours.size());
+
+		for (int i = 0; i < contours.size(); ++i)
+		{
+			minRects[i] = cv::minAreaRect(cv::Mat(contours[i]));
+		}
+
+		cv::Mat frameContours = cv::Mat::zeros(cameraFrame.size(), CV_8UC3);
+
+		for (int i = 0; i < contours.size(); i++)
+		{
+			if (minRects[i].size.area() < 100.0f)
+			{
+				continue;
+			}
+
+			std::array<cv::Point2f, 4u> rectPoints;
+			minRects[i].points(rectPoints.data());
+
+			for (int j = 0; j < 4; j++)
+			{
+				cv::line(frameContours, rectPoints[j], rectPoints[(j + 1) % 4], cv::Scalar(0, 255, 0), 1, cv::LINE_8);
+			}
+		}
+
+		cv::imshow("webcam_contours", frameContours);
 
 		cv::waitKey(16);
 	}
