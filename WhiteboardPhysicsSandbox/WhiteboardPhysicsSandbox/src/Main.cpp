@@ -34,6 +34,10 @@ int main(const int argc, char* argv[])
 	);
 	SDL_Renderer* renderer = SDL_CreateRenderer(physicsWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+	b2World physicsWorld({ 0.0f, 5.0f });
+	std::vector<b2Body*> whiteboardBodies;
+	constexpr float PixelsPerMetre = 100.0f;
+
 	while (isRunning)
 	{
 		SDL_Event event{ };
@@ -78,7 +82,15 @@ int main(const int argc, char* argv[])
 
 		cv::Mat frameContours = cv::Mat::zeros(cameraFrame.size(), CV_8UC3);
 
-		for (int i = 0; i < contours.size(); i++)
+		for (auto& body : whiteboardBodies)
+		{
+			physicsWorld.DestroyBody(body);
+		}
+		
+		whiteboardBodies.clear();
+		whiteboardBodies.reserve(contours.size());
+
+		for (std::size_t i = 0; i < contours.size(); i++)
 		{
 			if (minRects[i].size.area() < 100.0f)
 			{
@@ -88,7 +100,30 @@ int main(const int argc, char* argv[])
 			std::array<cv::Point2f, 4u> rectPoints;
 			minRects[i].points(rectPoints.data());
 
-			for (int j = 0; j < 4; j++)
+			b2BodyDef bodyDef;
+			bodyDef.type = b2_staticBody;
+			bodyDef.position.Set(rectPoints[0].x / PixelsPerMetre, rectPoints[0].y / PixelsPerMetre);
+
+			b2Vec2 vertices[4];
+
+			for (std::size_t j = 0; j < 4; ++j)
+			{
+				vertices[j].x = (rectPoints[j].x - rectPoints[0].x) / PixelsPerMetre;
+				vertices[j].y = (rectPoints[j].y - rectPoints[0].y) / PixelsPerMetre;
+			}
+
+			b2PolygonShape collider;
+			collider.Set(vertices, 4);
+
+			b2FixtureDef fixtureDef;
+			fixtureDef.shape = &collider;
+			fixtureDef.density = 0.0f;
+			fixtureDef.friction = 0.1f;
+
+			whiteboardBodies.push_back(physicsWorld.CreateBody(&bodyDef));
+			whiteboardBodies.back()->CreateFixture(&fixtureDef);
+
+			for (std::size_t j = 0; j < 4; j++)
 			{
 				cv::line(frameContours, rectPoints[j], rectPoints[(j + 1) % 4], cv::Scalar(0, 255, 0), 1, cv::LINE_8);
 			}
