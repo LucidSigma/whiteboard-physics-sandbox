@@ -4,11 +4,13 @@
 
 #include <SDL2/SDL_image.h>
 
-Ball::Ball(const std::unique_ptr<b2World>& physicsWorld, SDL_Renderer* renderer, const std::string& textureFilepath, const unsigned int windowWidth, const float pixelsPerMetre)
-	: m_initialPosition({ windowWidth / pixelsPerMetre / 2.0f, 0.0f })
+#include "Application.h"
+
+Ball::Ball(const Application& application, const std::string& textureFilepath, const unsigned int windowWidth)
+	: m_application(application), m_initialPosition({ windowWidth / m_application.GetPixelsPerMetre() / 2.0f, 0.0f })
 {
-	CreatePhysicsBody(physicsWorld);
-	InitialiseTexture(renderer, textureFilepath);
+	CreatePhysicsBody();
+	InitialiseTexture(textureFilepath);
 }
 
 void Ball::Draw(SDL_Renderer* renderer, const float pixelsPerMetre)
@@ -32,12 +34,12 @@ void Ball::ResetPosition()
 	m_physicsBody->SetLinearVelocity({ 0.0f, 0.0f });
 }
 
-void Ball::CreatePhysicsBody(const std::unique_ptr<b2World>& physicsWorld)
+void Ball::CreatePhysicsBody()
 {
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_dynamicBody;
 	bodyDef.position.Set(m_initialPosition.x, m_initialPosition.y);
-	m_physicsBody = physicsWorld->CreateBody(&bodyDef);
+	m_physicsBody = m_application.GetPhysicsWorld()->CreateBody(&bodyDef);
 
 	b2CircleShape circleCollider;
 	circleCollider.m_p.Set(0.0f, 0.0f);
@@ -51,7 +53,7 @@ void Ball::CreatePhysicsBody(const std::unique_ptr<b2World>& physicsWorld)
 	m_physicsBody->CreateFixture(&fixtureDef);
 }
 
-void Ball::InitialiseTexture(SDL_Renderer* renderer, const std::string& filepath)
+void Ball::InitialiseTexture(const std::string& filepath)
 {
 	SDL_Surface* loadedTextureSurface = IMG_Load(filepath.c_str());
 	
@@ -62,7 +64,7 @@ void Ball::InitialiseTexture(SDL_Renderer* renderer, const std::string& filepath
 		return;
 	}
 	
-	m_texture = SDL_CreateTextureFromSurface(renderer, loadedTextureSurface);
+	m_texture = SDL_CreateTextureFromSurface(m_application.GetRenderer(), loadedTextureSurface);
 	SDL_FreeSurface(loadedTextureSurface);
 }
 
