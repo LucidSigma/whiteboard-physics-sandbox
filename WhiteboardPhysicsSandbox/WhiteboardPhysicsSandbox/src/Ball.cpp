@@ -13,19 +13,19 @@ Ball::Ball(const Application& application, const std::string& textureFilepath, c
 	InitialiseTexture(textureFilepath);
 }
 
-void Ball::Draw(SDL_Renderer* renderer, const float pixelsPerMetre)
+void Ball::Draw()
 {
-	SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+	SDL_SetRenderDrawColor(m_application.GetRenderer(), 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
 
-	const SDL_Rect destinationRect = GetWorldRect(pixelsPerMetre);
-	SDL_RenderCopy(renderer, m_texture, nullptr, &destinationRect);
+	const SDL_Rect destinationRect = GetWorldRect();
+	SDL_RenderCopy(m_application.GetRenderer(), m_texture, nullptr, &destinationRect);
 }
 
-bool Ball::IsOffscreen(const unsigned int windowHeight, const float pixelsPerMetre)
+bool Ball::IsOffscreen(const unsigned int windowHeight)
 {
 	constexpr float Leeway = 2.0f;
 
-	return m_physicsBody->GetPosition().y * pixelsPerMetre > windowHeight + Leeway;
+	return m_physicsBody->GetPosition().y * m_application.GetPixelsPerMetre() > windowHeight + Leeway;
 }
 
 void Ball::ResetPosition()
@@ -68,12 +68,12 @@ void Ball::InitialiseTexture(const std::string& filepath)
 	SDL_FreeSurface(loadedTextureSurface);
 }
 
-SDL_Rect Ball::GetWorldRect(const float pixelsPerMetre) const
+SDL_Rect Ball::GetWorldRect() const
 {
 	return SDL_Rect{
-		static_cast<int>(m_physicsBody->GetPosition().x * pixelsPerMetre - (pixelsPerMetre * s_Radius)),
-		static_cast<int>(m_physicsBody->GetPosition().y * pixelsPerMetre - (pixelsPerMetre * s_Radius)),
-		static_cast<int>(s_Radius * pixelsPerMetre * 2.0f),
-		static_cast<int>(s_Radius * pixelsPerMetre * 2.0f)
+		static_cast<int>((m_physicsBody->GetPosition().x - s_Radius) * m_application.GetPixelsPerMetre()),
+		static_cast<int>((m_physicsBody->GetPosition().y - s_Radius) * m_application.GetPixelsPerMetre()),
+		static_cast<int>(s_Radius * m_application.GetPixelsPerMetre() * 2.0f),
+		static_cast<int>(s_Radius * m_application.GetPixelsPerMetre() * 2.0f)
 	};
 }

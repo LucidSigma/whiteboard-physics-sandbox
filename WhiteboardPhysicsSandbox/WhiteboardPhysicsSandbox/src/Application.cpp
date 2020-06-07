@@ -221,7 +221,7 @@ void Application::UpdatePhysics()
 	m_physicsWorld->Step((SDL_GetTicks() - m_ticksCount) / 1000.0f, 6, 2);
 	m_ticksCount = SDL_GetTicks();
 
-	if (m_ball->IsOffscreen(static_cast<unsigned int>(m_videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)), s_PixelsPerMetre))
+	if (m_ball->IsOffscreen(static_cast<unsigned int>(m_videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT))))
 	{
 		m_ball->ResetPosition();
 	}
@@ -232,7 +232,7 @@ void Application::Render() const
 	SDL_SetRenderDrawColor(m_renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
 	SDL_RenderClear(m_renderer);
 
-	m_ball->Draw(m_renderer, s_PixelsPerMetre);
+	m_ball->Draw();
 
 	SDL_RenderPresent(m_renderer);
 }

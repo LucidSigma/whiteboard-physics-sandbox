@@ -22,8 +22,8 @@ public:
 	Ball(const class Application& application, const std::string& textureFilepath, const unsigned int windowWidth);
 	~Ball() noexcept = default;
 
-	void Draw(SDL_Renderer* renderer, const float pixelsPerMetre);
-	bool IsOffscreen(const unsigned int windowHeight, const float pixelsPerMetre);
+	void Draw();
+	bool IsOffscreen(const unsigned int windowHeight);
 	void ResetPosition();
 
 	inline float GetRadius() const noexcept { return s_Radius; }
@@ -32,5 +32,5 @@ private:
 	void CreatePhysicsBody();
 	void InitialiseTexture(const std::string& filepath);
 
-	SDL_Rect GetWorldRect(const float pixelsPerMetre) const;
+	SDL_Rect GetWorldRect() const;
 };
