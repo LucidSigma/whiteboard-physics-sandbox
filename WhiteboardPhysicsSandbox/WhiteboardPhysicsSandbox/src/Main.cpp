@@ -1,12 +1,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include <box2d/box2d.h>
 #include <opencv2/opencv.hpp>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+
+#include "Ball.h"
 
 int main(const int argc, char* argv[])
 {
@@ -58,30 +61,11 @@ int main(const int argc, char* argv[])
 
 	SDL_Renderer* renderer = SDL_CreateRenderer(physicsWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-	b2World physicsWorld({ 0.0f, 5.0f });
+	std::unique_ptr<b2World> physicsWorld = std::make_unique<b2World>(b2Vec2{ 0.0f, 5.0f });
 	std::vector<b2Body*> whiteboardBodies;
 	constexpr float PixelsPerMetre = 100.0f;
 
-	constexpr float BallRadius = 0.25f;
-	b2BodyDef bodyDef;
-	bodyDef.type = b2_dynamicBody;
-	bodyDef.position.Set(static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH)) / 2.0f / PixelsPerMetre, 0.0f);
-	b2Body* ballBody = physicsWorld.CreateBody(&bodyDef);
-
-	b2CircleShape dynamicCircle;
-	dynamicCircle.m_p.Set(0.0f, 0.0f);
-	dynamicCircle.m_radius = BallRadius;
-
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &dynamicCircle;
-	fixtureDef.density = 0.1f;
-	fixtureDef.friction = 0.1f;
-	fixtureDef.restitution = 0.2f;
-	ballBody->CreateFixture(&fixtureDef);
-
-	SDL_Surface* loadedTexture = IMG_Load("images/circle.png");
-	SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, loadedTexture);
-	SDL_FreeSurface(loadedTexture);
+	Ball ball(physicsWorld, renderer, "images/circle.png", static_cast<unsigned int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH)), PixelsPerMetre);
 
 	bool isRunning = true;
 	std::uint32_t ticksCount = SDL_GetTicks();
@@ -109,7 +93,8 @@ int main(const int argc, char* argv[])
 		cv::imshow("webcam", cameraFrame);
 
 		cv::cvtColor(cameraFrame, cameraFrame, cv::COLOR_BGR2GRAY);
-		cv::threshold(cameraFrame, cameraFrame, 128.0, 255.0f, cv::THRESH_BINARY_INV);
+		cv::imshow("webcam_greyscale", cameraFrame);
+		cv::threshold(cameraFrame, cameraFrame, 140.0, 255.0f, cv::THRESH_BINARY_INV);
 		cv::imshow("webcam_threshold", cameraFrame);
 
 		std::vector<std::vector<cv::Point>> contours;
@@ -128,7 +113,7 @@ int main(const int argc, char* argv[])
 
 		for (auto& body : whiteboardBodies)
 		{
-			physicsWorld.DestroyBody(body);
+			physicsWorld->DestroyBody(body);
 		}
 		
 		whiteboardBodies.clear();
@@ -165,7 +150,7 @@ int main(const int argc, char* argv[])
 			fixtureDef.friction = 0.1f;
 			fixtureDef.restitution = 0.1f;
 
-			whiteboardBodies.push_back(physicsWorld.CreateBody(&bodyDef));
+			whiteboardBodies.push_back(physicsWorld->CreateBody(&bodyDef));
 			whiteboardBodies.back()->CreateFixture(&fixtureDef);
 
 			for (std::size_t j = 0; j < 4; j++)
@@ -176,28 +161,19 @@ int main(const int argc, char* argv[])
 
 		cv::imshow("webcam_contours", frameContours);
 
-		physicsWorld.Step((SDL_GetTicks() - ticksCount) / 1000.0f, 6, 2);
+		physicsWorld->Step((SDL_GetTicks() - ticksCount) / 1000.0f, 6, 2);
 		ticksCount = SDL_GetTicks();
 
 		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
 		SDL_RenderClear(renderer);
-
-		const SDL_Rect destination{
-			static_cast<int>(ballBody->GetPosition().x * PixelsPerMetre - (PixelsPerMetre * BallRadius)),
-			static_cast<int>(ballBody->GetPosition().y * PixelsPerMetre - (PixelsPerMetre * BallRadius)),
-			static_cast<int>(BallRadius * PixelsPerMetre * 2.0f),
-			static_cast<int>(BallRadius * PixelsPerMetre * 2.0f)
-		};
-
-		SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
-		SDL_RenderCopy(renderer, texture, nullptr, &destination);
+		
+		ball.Draw(renderer, PixelsPerMetre);
 
 		SDL_RenderPresent(renderer);
 
-		if (ballBody->GetPosition().y * PixelsPerMetre > static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)) + 2.0f)
+		if (ball.IsOffscreen(static_cast<unsigned int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)), PixelsPerMetre))
 		{
-			ballBody->SetTransform({ static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH)) / 2.0f / PixelsPerMetre, 0.0f }, 0.0f);
-			ballBody->SetLinearVelocity({ 0.0f, 0.0f });
+			ball.ResetPosition();
 		}
 
 		cv::waitKey(16);
