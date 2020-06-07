@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -5,9 +6,30 @@
 #include <box2d/box2d.h>
 #include <opencv2/opencv.hpp>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 int main(const int argc, char* argv[])
 {
+	std::clog << "INITIALISING SDL...\n";
+	
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
+	{
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "SDL Error", "Failed to initialise SDL.", nullptr);
+		std::cin.get();
+
+		return EXIT_FAILURE;
+	}
+
+	if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
+	{
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "SDL_Image Error", "Failed to initialise SDL_image.", nullptr);
+		std::cin.get();
+
+		return EXIT_FAILURE;
+	}
+
+	std::clog << "SDL INITIALISED.\n";
+
 	std::clog << "INITIALISING VIDEO...\n";
 	cv::VideoCapture videoCapture(0);
 
@@ -23,7 +45,6 @@ int main(const int argc, char* argv[])
 
 	cv::Mat cameraFrame;
 
-	bool isRunning = true;
 	SDL_Window* physicsWindow = SDL_CreateWindow(
 		"physics",
 		SDL_WINDOWPOS_UNDEFINED,
@@ -32,11 +53,38 @@ int main(const int argc, char* argv[])
 		static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)),
 		SDL_WINDOW_SHOWN
 	);
+
+	SDL_SetWindowOpacity(physicsWindow, 0.5f);
+
 	SDL_Renderer* renderer = SDL_CreateRenderer(physicsWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
 	b2World physicsWorld({ 0.0f, 5.0f });
 	std::vector<b2Body*> whiteboardBodies;
 	constexpr float PixelsPerMetre = 100.0f;
+
+	constexpr float BallRadius = 0.25f;
+	b2BodyDef bodyDef;
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position.Set(static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH)) / 2.0f / PixelsPerMetre, 0.0f);
+	b2Body* ballBody = physicsWorld.CreateBody(&bodyDef);
+
+	b2CircleShape dynamicCircle;
+	dynamicCircle.m_p.Set(0.0f, 0.0f);
+	dynamicCircle.m_radius = BallRadius;
+
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &dynamicCircle;
+	fixtureDef.density = 0.1f;
+	fixtureDef.friction = 0.1f;
+	fixtureDef.restitution = 0.2f;
+	ballBody->CreateFixture(&fixtureDef);
+
+	SDL_Surface* loadedTexture = IMG_Load("images/circle.png");
+	SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, loadedTexture);
+	SDL_FreeSurface(loadedTexture);
+
+	bool isRunning = true;
+	std::uint32_t ticksCount = SDL_GetTicks();
 
 	while (isRunning)
 	{
@@ -56,10 +104,6 @@ int main(const int argc, char* argv[])
 				break;
 			}
 		}
-
-		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
-		SDL_RenderClear(renderer);
-		SDL_RenderPresent(renderer);
 
 		videoCapture >> cameraFrame;
 		cv::imshow("webcam", cameraFrame);
@@ -119,6 +163,7 @@ int main(const int argc, char* argv[])
 			fixtureDef.shape = &collider;
 			fixtureDef.density = 0.0f;
 			fixtureDef.friction = 0.1f;
+			fixtureDef.restitution = 0.1f;
 
 			whiteboardBodies.push_back(physicsWorld.CreateBody(&bodyDef));
 			whiteboardBodies.back()->CreateFixture(&fixtureDef);
@@ -131,11 +176,36 @@ int main(const int argc, char* argv[])
 
 		cv::imshow("webcam_contours", frameContours);
 
+		physicsWorld.Step((SDL_GetTicks() - ticksCount) / 1000.0f, 6, 2);
+		ticksCount = SDL_GetTicks();
+
+		SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+		SDL_RenderClear(renderer);
+
+		const SDL_Rect destination{
+			static_cast<int>(ballBody->GetPosition().x * PixelsPerMetre - (PixelsPerMetre * BallRadius)),
+			static_cast<int>(ballBody->GetPosition().y * PixelsPerMetre - (PixelsPerMetre * BallRadius)),
+			static_cast<int>(BallRadius * PixelsPerMetre * 2.0f),
+			static_cast<int>(BallRadius * PixelsPerMetre * 2.0f)
+		};
+
+		SDL_SetRenderDrawColor(renderer, 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
+		SDL_RenderCopy(renderer, texture, nullptr, &destination);
+
+		SDL_RenderPresent(renderer);
+
+		if (ballBody->GetPosition().y * PixelsPerMetre > static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)) + 2.0f)
+		{
+			ballBody->SetTransform({ static_cast<int>(videoCapture.get(cv::CAP_PROP_FRAME_WIDTH)) / 2.0f / PixelsPerMetre, 0.0f }, 0.0f);
+			ballBody->SetLinearVelocity({ 0.0f, 0.0f });
+		}
+
 		cv::waitKey(16);
 	}
 
 	cv::destroyAllWindows();
 	SDL_DestroyWindow(physicsWindow);
+	IMG_Quit();
 	SDL_Quit();
 
 	return EXIT_SUCCESS;
