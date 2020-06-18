@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <box2d/box2d.h>
@@ -16,6 +17,7 @@ private:
 	static constexpr float s_PixelsPerMetre = 100.0f;
 
 	cv::VideoCapture m_videoCapture;
+	int m_projectorDisplayIndex = 0;
 	SDL_Window* m_window = nullptr;
 	SDL_Renderer* m_renderer = nullptr;
 

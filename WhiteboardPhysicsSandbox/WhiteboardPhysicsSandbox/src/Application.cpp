@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include <fstream>
 #include <iostream>
 
 #include <SDL2/SDL_image.h>
@@ -79,8 +80,36 @@ void Application::InitialiseVideoCapture()
 
 		return;
 	}
+	
+	{
+		std::ifstream projectorIndexFile("data/projectorIndex.txt");
+
+		if (!projectorIndexFile.is_open())
+		{
+			std::cerr << "Failed to open projector display index file.\n";
+
+			return;
+		}
+
+		projectorIndexFile >> m_projectorDisplayIndex;
+		projectorIndexFile.close();
+	}
+
+	SDL_Rect projectorDisplayBounds{ };
+	
+	if (SDL_GetDisplayBounds(m_projectorDisplayIndex, &projectorDisplayBounds) != 0)
+	{
+		std::cerr << "Invalid projector display index.\n";
+
+		return;
+	}
+
+	m_videoCapture.set(cv::CAP_PROP_FRAME_WIDTH, projectorDisplayBounds.w);
+	m_videoCapture.set(cv::CAP_PROP_FRAME_WIDTH, projectorDisplayBounds.h);
 
 	std::clog << "VIDEO INITIALISED.\n";
+	std::clog << "PROJECTOR DISPLAY INDEX: " << m_projectorDisplayIndex << "\n";
+	std::clog << "PROJECTOR DIMENSIONS: " << m_videoCapture.get(cv::CAP_PROP_FRAME_WIDTH) << " * " << m_videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT) << "\n";
 }
 
 void Application::InitialiseWindow()
@@ -93,8 +122,6 @@ void Application::InitialiseWindow()
 		static_cast<int>(m_videoCapture.get(cv::CAP_PROP_FRAME_HEIGHT)),
 		SDL_WINDOW_SHOWN
 	);
-
-	SDL_SetWindowOpacity(m_window, 0.5f);
 }
 
 void Application::InitialiseRenderer()
@@ -116,9 +143,23 @@ void Application::PollEvents(SDL_Event& event)
 		switch (event.type)
 		{
 		case SDL_KEYDOWN:
-			if (event.key.keysym.sym == SDLK_ESCAPE)
+			switch (event.key.keysym.sym)
 			{
+			case SDLK_RETURN:
+			{
+				static bool isFullscreen = false;
+
+				SDL_SetWindowFullscreen(m_window, isFullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+				isFullscreen = !isFullscreen;
+			}
+
+				break;
+
+			case SDLK_ESCAPE:
 				m_isRunning = false;
+
+			default:
+				break;
 			}
 
 			break;
