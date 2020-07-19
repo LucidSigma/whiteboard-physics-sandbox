@@ -34,6 +34,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="data\projectorIndex.txt" />
+    <Text Include="data\projectorIndex.json" />
   </ItemGroup>
 </Project>

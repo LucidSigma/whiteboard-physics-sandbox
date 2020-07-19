@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include <nlohmann/json.hpp>
 #include <SDL2/SDL_image.h>
 
 Application::Application()
@@ -82,7 +83,7 @@ void Application::InitialiseVideoCapture()
 	}
 	
 	{
-		std::ifstream projectorIndexFile("data/projectorIndex.txt");
+		std::ifstream projectorIndexFile("data/projectorIndex.json");
 
 		if (!projectorIndexFile.is_open())
 		{
@@ -90,9 +91,12 @@ void Application::InitialiseVideoCapture()
 
 			return;
 		}
-
-		projectorIndexFile >> m_projectorDisplayIndex;
+		
+		nlohmann::json json;
+		projectorIndexFile >> json;
 		projectorIndexFile.close();
+
+		m_projectorDisplayIndex = json["projector-display-index"];
 	}
 
 	SDL_Rect projectorDisplayBounds{ };
@@ -181,6 +185,7 @@ void Application::CaptureWebcamFrame(cv::Mat& cameraFrame)
 	cv::imshow("webcam", cameraFrame);
 
 	cv::cvtColor(cameraFrame, cameraFrame, cv::COLOR_BGR2GRAY);
+	cv::imshow("webcam_greyscale", cameraFrame);
 	cv::threshold(cameraFrame, cameraFrame, 140.0, 255.0f, cv::THRESH_BINARY_INV);
 	cv::imshow("webcam_threshold", cameraFrame);
 }
