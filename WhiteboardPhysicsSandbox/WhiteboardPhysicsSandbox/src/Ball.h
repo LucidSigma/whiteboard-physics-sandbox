@@ -20,7 +20,7 @@ private:
 
 public:
 	Ball(const class Application& application, const std::string& textureFilepath, const unsigned int windowWidth);
-	~Ball() noexcept = default;
+	~Ball() noexcept;
 
 	void Draw();
 	bool IsOffscreen(const unsigned int windowHeight);

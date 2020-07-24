@@ -13,6 +13,12 @@ Ball::Ball(const Application& application, const std::string& textureFilepath, c
 	InitialiseTexture(textureFilepath);
 }
 
+Ball::~Ball() noexcept
+{
+	SDL_DestroyTexture(m_texture);
+	m_texture = nullptr;
+}
+
 void Ball::Draw()
 {
 	SDL_SetRenderDrawColor(m_application.GetRenderer(), 0xFF, 0x00, 0x00, SDL_ALPHA_OPAQUE);
